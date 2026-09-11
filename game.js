@@ -16,6 +16,131 @@
   const overBest = document.getElementById("overBest");
   const overKicker = document.getElementById("overKicker");
   const medalEl = document.getElementById("medal");
+  const boardEl = document.getElementById("board");
+  const boardList = document.getElementById("boardList");
+  const boardHint = document.getElementById("boardHint");
+  const pilotName = document.getElementById("pilotName");
+  const submitMsg = document.getElementById("submitMsg");
+  const scoreForm = document.getElementById("scoreForm");
+
+  const NAME_KEY = "flappyPlane911Name";
+  const LOCAL_BOARD_KEY = "flappyPlane911Board";
+  const WEBHOOK_UUID = "37108a0e-3c95-496a-89de-7df8123121e7";
+  const WEBHOOK_POST = "https://webhook.site/" + WEBHOOK_UUID;
+  const WEBHOOK_GET = "https://webhook.site/token/" + WEBHOOK_UUID + "/requests?sorting=newest&per_page=80";
+  const SCORES_JSON = "scores.json";
+  const MAX_SCORE = 9999;
+
+  let boardOpen = false;
+  let submittedThisRun = false;
+  let boardCache = [];
+
+  function cleanName(s) {
+    return String(s || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 12) || "PILOT";
+  }
+
+  function localBoard() {
+    try { return JSON.parse(localStorage.getItem(LOCAL_BOARD_KEY) || "[]"); } catch (_) { return []; }
+  }
+
+  function saveLocalBoard(rows) {
+    localStorage.setItem(LOCAL_BOARD_KEY, JSON.stringify(rows.slice(0, 50)));
+  }
+
+  function mergeScores(lists) {
+    const map = new Map();
+    for (const list of lists) {
+      for (const row of list || []) {
+        const name = cleanName(row.name);
+        const score = Math.min(MAX_SCORE, Math.max(0, Number(row.score) || 0));
+        const at = Number(row.at) || 0;
+        if (!score) continue;
+        const prev = map.get(name);
+        if (!prev || score > prev.score) map.set(name, { name, score, at: at || Date.now() });
+      }
+    }
+    return [...map.values()].sort((a, b) => b.score - a.score || a.at - b.at).slice(0, 20);
+  }
+
+  async function fetchGlobalScores() {
+    const lists = [localBoard()];
+    try {
+      const res = await fetch(SCORES_JSON + "?t=" + Date.now(), { cache: "no-store" });
+      if (res.ok) {
+        const json = await res.json();
+        lists.push(json.scores || json || []);
+      }
+    } catch (_) {}
+    try {
+      const res = await fetch(WEBHOOK_GET, { cache: "no-store" });
+      if (res.ok) {
+        const json = await res.json();
+        const rows = Array.isArray(json) ? json : (json.data || []);
+        const parsed = [];
+        for (const req of rows) {
+          if (!req || !req.content) continue;
+          try {
+            const body = typeof req.content === "string" ? JSON.parse(req.content) : req.content;
+            parsed.push({ name: body.name, score: body.score, at: Date.parse(req.created_at) || 0 });
+          } catch (_) {}
+        }
+        lists.push(parsed);
+      }
+    } catch (_) {}
+    boardCache = mergeScores(lists);
+    return boardCache;
+  }
+
+  function renderBoard(rows) {
+    const me = cleanName(pilotName.value || localStorage.getItem(NAME_KEY));
+    boardList.innerHTML = "";
+    if (!rows.length) {
+      boardList.innerHTML = "<li><span></span><span>NO SCORES YET</span><span></span></li>";
+      return;
+    }
+    rows.forEach((row, i) => {
+      const li = document.createElement("li");
+      if (row.name === me) li.className = "you";
+      li.innerHTML = `<span class="rank">${i + 1}</span><span>${row.name}</span><span>${row.score}</span>`;
+      boardList.appendChild(li);
+    });
+  }
+
+  async function showBoard() {
+    boardOpen = true;
+    boardEl.classList.remove("hide");
+    boardHint.textContent = "LOADING...";
+    const rows = await fetchGlobalScores();
+    renderBoard(rows);
+    boardHint.textContent = "GLOBAL TOP 20";
+  }
+
+  function hideBoard() {
+    boardOpen = false;
+    boardEl.classList.add("hide");
+  }
+
+  async function submitScore(name, score) {
+    name = cleanName(name);
+    score = Math.min(MAX_SCORE, Math.max(0, Number(score) || 0));
+    if (!score) return false;
+    const row = { name, score, at: Date.now() };
+    saveLocalBoard(mergeScores([localBoard(), [row]]));
+    localStorage.setItem(NAME_KEY, name);
+    try {
+      await fetch(WEBHOOK_POST, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, score, at: row.at }),
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   const img = { up: null, mid: null, down: null, skyline: null, ground: null };
 
@@ -125,6 +250,8 @@
     state.deadTimer = 0;
     state.flapFrame = 1;
     state.boom = null;
+    submittedThisRun = false;
+    if (submitMsg) submitMsg.textContent = "";
     state.mode = keepReady ? "ready" : "play";
     scoreBox.textContent = "0";
     if (keepReady) {
@@ -164,6 +291,7 @@
   }
 
   function flap() {
+    if (boardOpen) return;
     if (state.mode === "ready") { startPlay(); return; }
     if (state.mode === "dead") {
       if (state.deadTimer > 0.85) {
@@ -684,10 +812,58 @@
   }
 
   document.getElementById("stage").addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".panel")) return;
     e.preventDefault();
     flap();
   });
+
+  document.getElementById("startBtn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (state.mode === "ready") startPlay();
+  });
+  document.getElementById("retryBtn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (state.mode === "dead" && state.deadTimer > 0.55) {
+      hideBoard();
+      resetRun(false);
+      state.birdVy = -8.2;
+      sfx.flap();
+    }
+  });
+  document.getElementById("openBoardStart").addEventListener("click", (e) => {
+    e.stopPropagation();
+    showBoard();
+  });
+  document.getElementById("openBoardOver").addEventListener("click", (e) => {
+    e.stopPropagation();
+    showBoard();
+  });
+  document.getElementById("closeBoard").addEventListener("click", (e) => {
+    e.stopPropagation();
+    hideBoard();
+  });
+  scoreForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (submittedThisRun) {
+      submitMsg.textContent = "ALREADY IN";
+      return;
+    }
+    const score = state.score;
+    if (!score) {
+      submitMsg.textContent = "SCORE 0 — FLY FIRST";
+      return;
+    }
+    submitMsg.textContent = "SENDING...";
+    const ok = await submitScore(pilotName.value, score);
+    submittedThisRun = true;
+    submitMsg.textContent = ok ? "ON THE BOARD" : "SAVED HERE";
+    fetchGlobalScores().then(renderBoard);
+  });
+  pilotName.value = localStorage.getItem(NAME_KEY) || "";
+  fetchGlobalScores();
   window.addEventListener("keydown", (e) => {
+    if (e.target === pilotName) return;
     if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
       e.preventDefault();
       flap();

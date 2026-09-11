@@ -36,7 +36,8 @@
           <h1>FLAPPY<br>PLANE</h1>
           <div class="ticker">$9/11</div>
           <p class="hint">tap / click / space</p>
-          <div class="cta">TAP TO START</div>
+          <div class="cta" id="startBtn">TAP TO START</div>
+          <button type="button" class="ghost" id="openBoardStart">LEADERBOARD</button>
         </div>
       </div>
 
@@ -54,7 +55,23 @@
               <div class="num" id="overBest">0</div>
             </div>
           </div>
-          <div class="cta">TAP TO RETRY</div>
+          <form id="scoreForm" autocomplete="off">
+            <label class="lbl" for="pilotName">CALLSIGN</label>
+            <input id="pilotName" maxlength="12" placeholder="PILOT" spellcheck="false" />
+            <button type="submit" class="cta static" id="submitScore">SUBMIT SCORE</button>
+          </form>
+          <p class="hint" id="submitMsg"></p>
+          <button type="button" class="cta static" id="retryBtn">TAP TO RETRY</button>
+          <button type="button" class="ghost" id="openBoardOver">LEADERBOARD</button>
+        </div>
+      </div>
+
+      <div id="board" class="hide">
+        <div class="panel board-panel">
+          <div class="kicker">TOP PILOTS</div>
+          <ol id="boardList" class="board-list"></ol>
+          <p class="hint" id="boardHint">GLOBAL BOARD</p>
+          <button type="button" class="cta static" id="closeBoard">CLOSE</button>
         </div>
       </div>
     </div>
@@ -63,6 +80,6 @@
       <a class="buy" href="https://pump.fun" target="_blank" rel="noopener">BUY ON PUMP.FUN</a>
     </footer>
   </div>
-  <script src="game.js?v=drop1"></script>
+  <script src="game.js?v=board1"></script>
 </body>
 </html>

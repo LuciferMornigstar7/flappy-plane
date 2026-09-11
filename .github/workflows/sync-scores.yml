@@ -1,0 +1,20 @@
+name: Sync leaderboard
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node scripts/sync-scores.js
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update leaderboard"
+          file_pattern: scores.json
