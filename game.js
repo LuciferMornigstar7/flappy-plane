@@ -281,6 +281,7 @@
     state.shake = 18;
     state.flash = 0.85;
     state.boom = spawnBoom(BIRD.x + BIRD.w * 0.62, state.birdY);
+    startTowerDrop(state.boom.x);
     sfx.crash();
     if (state.score > state.best) {
       state.best = state.score;
@@ -294,7 +295,27 @@
     else if (state.score >= 25) medalEl.classList.add("gold");
     else if (state.score >= 10) medalEl.classList.add("silver");
     else if (state.score >= 5) medalEl.classList.add("bronze");
-    setTimeout(() => overEl.classList.remove("hide"), 900);
+    setTimeout(() => overEl.classList.remove("hide"), 1300);
+  }
+
+  function startTowerDrop(boomX) {
+    for (const p of state.pipes) {
+      const cx = p.x + PIPE_W / 2;
+      const dir = cx < boomX ? -1 : 1;
+      p.fall = {
+        delay: Math.min(0.28, Math.abs(cx - boomX) / 900),
+        topY: 0,
+        topVy: 0.8,
+        topRot: 0,
+        topVr: dir * (0.012 + Math.random() * 0.02),
+        topLanded: false,
+        botY: 0,
+        botVy: 0.4,
+        botRot: 0,
+        botVr: dir * (0.018 + Math.random() * 0.025),
+        botLanded: false,
+      };
+    }
   }
 
   function update(dt) {
@@ -351,6 +372,72 @@
     if (state.mode === "dead") {
       state.deadTimer += dt;
       updateBoom(dt, f);
+      updateTowerDrop(dt, f);
+    }
+  }
+
+  function puffDust(x, y, n) {
+    if (!state.boom) return;
+    const gray = ["#6e767e", "#9aa3ab", "#3a3330", "#c5c0b0"];
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI * 0.15 - Math.random() * Math.PI * 0.7;
+      const sp = 1 + Math.random() * 4;
+      state.boom.sparks.push({
+        x: x + (Math.random() - 0.5) * 30,
+        y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - 1,
+        life: 0.4 + Math.random() * 0.5,
+        max: 0.9,
+        size: PX * (1 + (i % 3)),
+        color: gray[i % gray.length],
+      });
+    }
+  }
+
+  function updateTowerDrop(dt, f) {
+    for (const p of state.pipes) {
+      const fall = p.fall;
+      if (!fall) continue;
+      if (state.deadTimer < fall.delay) continue;
+
+      const gapTop = p.gapY - state.gap / 2;
+      const gapBot = p.gapY + state.gap / 2;
+      const topH = Math.max(8, gapTop + 8);
+      const botH = PLAY_BOT - gapBot + 8;
+      const topY0 = PLAY_TOP - 8;
+      const botY0 = gapBot;
+
+      fall.topVy += 0.62 * f;
+      fall.topY += fall.topVy * f;
+      fall.topRot += fall.topVr * f;
+      const topBottom = topY0 + topH + fall.topY;
+      if (topBottom >= PLAY_BOT - 2) {
+        fall.topY = PLAY_BOT - 2 - topH - topY0;
+        if (!fall.topLanded) {
+          fall.topLanded = true;
+          puffDust(p.x + PIPE_W / 2, PLAY_BOT - 6, 10);
+        }
+        fall.topVy = 0;
+        fall.topVr *= 0.7;
+      }
+
+      fall.botVy += 0.5 * f;
+      fall.botY += fall.botVy * f;
+      fall.botRot += fall.botVr * f;
+      if (Math.abs(fall.botRot) > 1.15) {
+        fall.botRot = Math.sign(fall.botRot) * 1.15;
+        fall.botVr = 0;
+      }
+      const botBottom = botY0 + botH + fall.botY;
+      if (botBottom >= PLAY_BOT + 28) {
+        fall.botY = PLAY_BOT + 28 - botH - botY0;
+        if (!fall.botLanded) {
+          fall.botLanded = true;
+          puffDust(p.x + PIPE_W / 2, PLAY_BOT - 6, 8);
+        }
+        fall.botVy = 0;
+      }
     }
   }
 
@@ -465,8 +552,26 @@
     for (const p of state.pipes) {
       const gapTop = p.gapY - state.gap / 2;
       const gapBot = p.gapY + state.gap / 2;
-      drawTower(p.x, PLAY_TOP - 8, PIPE_W, Math.max(0, gapTop + 8), true);
-      drawTower(p.x, gapBot, PIPE_W, PLAY_BOT - gapBot + 8, false);
+      const topH = Math.max(0, gapTop + 8);
+      const botH = PLAY_BOT - gapBot + 8;
+      const topY0 = PLAY_TOP - 8;
+      const botY0 = gapBot;
+      if (p.fall) {
+        const fall = p.fall;
+        ctx.save();
+        ctx.translate(snap(p.x + PIPE_W / 2), snap(topY0 + topH / 2 + fall.topY));
+        ctx.rotate(fall.topRot);
+        drawTower(-PIPE_W / 2, -topH / 2, PIPE_W, topH, true);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(snap(p.x + PIPE_W / 2), snap(botY0 + botH / 2 + fall.botY));
+        ctx.rotate(fall.botRot);
+        drawTower(-PIPE_W / 2, -botH / 2, PIPE_W, botH, false);
+        ctx.restore();
+      } else {
+        drawTower(p.x, topY0, PIPE_W, topH, true);
+        drawTower(p.x, botY0, PIPE_W, botH, false);
+      }
     }
   }
 
