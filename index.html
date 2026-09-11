@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#4ec0ca" />
+  <title>FLAPPY PLANE — $9/11</title>
+  <meta name="description" content="Pixel Flappy Plane arcade. Tap to fly. Don't hit the towers." />
+  <meta property="og:title" content="FLAPPY PLANE — $9/11" />
+  <meta property="og:description" content="Pixel Flappy Plane arcade. Tap to fly. Don't hit the towers." />
+  <meta property="og:image" content="https://lucifermornigstar7.github.io/flappy-plane/assets/plane.png" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="icon" href="assets/plane.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="brand">
+      <div class="brand-title">FLAPPY PLANE</div>
+      <div class="brand-ticker">$9/11</div>
+    </header>
+
+    <div id="stage">
+      <canvas id="game" width="480" height="800"></canvas>
+
+      <div id="hud">
+        <div id="scoreBox">0</div>
+      </div>
+
+      <div id="overlay" class="show ready">
+        <div class="panel">
+          <div class="kicker">PUMP.FUN ARCADE</div>
+          <h1>FLAPPY<br>PLANE</h1>
+          <div class="ticker">$9/11</div>
+          <p class="hint">tap / click / space</p>
+          <div class="cta">TAP TO START</div>
+        </div>
+      </div>
+
+      <div id="over" class="hide">
+        <div class="panel over-panel">
+          <div class="kicker" id="overKicker">CRASHED</div>
+          <div class="over-stats">
+            <div>
+              <div class="lbl">SCORE</div>
+              <div class="num" id="overScore">0</div>
+            </div>
+            <div class="medal" id="medal"></div>
+            <div>
+              <div class="lbl">BEST</div>
+              <div class="num" id="overBest">0</div>
+            </div>
+          </div>
+          <div class="cta">TAP TO RETRY</div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="token">
+      <a class="buy" href="https://pump.fun" target="_blank" rel="noopener">BUY ON PUMP.FUN</a>
+    </footer>
+  </div>
+  <script src="game.js?v=boom3"></script>
+</body>
+</html>
